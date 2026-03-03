@@ -8,9 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Home, User, ArrowRight, ArrowLeft, DollarSign, CreditCard, MapPin, CheckCircle2, Gift, TrendingUp, Building, Star, Phone, Mail, ExternalLink, Upload, FileText, X, Calendar, Clock, Video, MessageSquare } from 'lucide-react'
+import { lenders } from '@/data/lenders'
+import { realtors } from '@/data/realtors'
 
 // Constants
-const COUNTIES = ['Adams', 'Arapahoe', 'Boulder', 'Denver', 'Douglas', 'El Paso', 'Jefferson', 'Larimer', 'Pueblo', 'Weld']
+const COUNTIES = ['Adams', 'Arapahoe', 'Boulder', 'Broomfield', 'Denver', 'Douglas', 'El Paso', 'Jefferson', 'Larimer', 'Pueblo', 'Weld']
 const CREDIT_RANGES = [
   { value: '740-plus', label: '740+' },
   { value: '700-739', label: '700-739' },
@@ -32,59 +34,334 @@ const PHASES = [
 // Programs data
 const PROGRAMS = [
   {
-    id: 'metro-dpa',
-    name: 'Metro DPA',
-    description: 'Down payment assistance for Denver metro area',
+    id: 'chfa-firststep-plus',
+    name: 'CHFA FirstStep Plus',
+    administrator: 'CHFA',
+    type: 'First Mortgage + DPA Second',
+    maxDPAText: 'Up to $25,000 or 4% of loan',
     maxAssistance: 25000,
-    isGrant: false,
-    forgivable: true,
-    yearsToForgiveness: 5,
-    counties: ['Denver', 'Arapahoe', 'Jefferson', 'Adams', 'Douglas'],
-    maxIncome: 150000,
+    description: '0% interest DPA paired with a CHFA FHA first mortgage. DPA deferred until sale or refinance.',
+    firstTimeBuyerOnly: true,
     minCredit: 620,
-    firstTimeBuyerOnly: true
+    maxIncome: 174440,
+    incomeLimitText: 'Varies by county/household size',
+    counties: ['all'],
+    serviceAreaText: 'Statewide',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['0% interest DPA, no monthly payments', 'DPA can cover down payment, closing costs, or rate buydown', 'Gift funds allowed for $1,000 min contribution', 'Lowest CHFA interest rates'],
+    drawbacks: ['DPA due on sale, refi, or move out', 'FHA only — requires mortgage insurance', 'Cannot stack with other DPA programs'],
+    programLink: 'https://www.chfainfo.com/single-family-participating-lenders/chfa-firststep',
+    applyLink: 'https://www.chfainfo.com/getattachment/4e0ac051-ffd8-468c-926c-2c9fb9547999/CHFA-FirstStep-and-Plus-matrix.pdf',
   },
   {
-    id: 'chfa-dpa',
-    name: 'CHFA DPA Grant',
-    description: 'Colorado Housing Finance Authority grant',
+    id: 'chfa-smartstep-plus',
+    name: 'CHFA SmartStep Plus',
+    administrator: 'CHFA',
+    type: 'First Mortgage + DPA Second',
+    maxDPAText: 'Up to $25,000 or 4% of loan',
+    maxAssistance: 25000,
+    description: '0% interest DPA open to first-time and repeat buyers. Pairs with FHA, VA, or USDA loans.',
+    firstTimeBuyerOnly: false,
+    minCredit: 620,
+    maxIncome: 174440,
+    incomeLimitText: '$174,440 statewide',
+    counties: ['all'],
+    serviceAreaText: 'Statewide',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Not limited to first-time buyers', 'FHA, VA, or USDA loan options', '0% interest DPA, no monthly payments', 'Higher income limit ($174,440)'],
+    drawbacks: ['DPA due on sale, refi, or move out', 'Cannot stack with other DPA programs'],
+    programLink: 'https://www.chfainfo.com/single-family-participating-lenders/programs-forms-and-matrices',
+    applyLink: 'https://www.chfainfo.com/getattachment/3ae13693-82ec-498d-8d22-72987ad3f3ac/CHFA-SmartStep-Plus-matrix.pdf',
+  },
+  {
+    id: 'chfa-firstgeneration',
+    name: 'CHFA FirstGeneration',
+    administrator: 'CHFA',
+    type: 'First Mortgage + DPA Second',
+    maxDPAText: '$25,000 flat (not capped at 4%)',
+    maxAssistance: 25000,
+    description: '$25,000 DPA for first-generation homebuyers whose parents never owned a home. Foster care alumni eligible.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 174440,
+    incomeLimitText: 'Varies by county/household size',
+    counties: ['all'],
+    serviceAreaText: 'Statewide',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['$25K DPA regardless of loan size (not capped at 4%)', '0% interest, no monthly payments', 'Designed for buyers whose parents never owned', 'Foster care alumni eligible'],
+    drawbacks: ['Borrower AND parents/guardians must never have owned a home', 'FHA only', 'Subject to IRS Recapture Tax'],
+    programLink: 'https://www.chfainfo.com/single-family-participating-lenders/programs-forms-and-matrices',
+    applyLink: 'https://www.chfainfo.com/getattachment/013bd34d-30b3-4176-ba09-8e67fe1b4b46/CHFA-FirstGeneration-matrix.pdf',
+  },
+  {
+    id: 'chfa-homeaccess',
+    name: 'CHFA HomeAccess',
+    administrator: 'CHFA',
+    type: 'First Mortgage + DPA (Grant or Second)',
+    maxDPAText: '$25,000 flat',
+    maxAssistance: 25000,
+    description: '$25,000 DPA for buyers with a permanent disability or custodial parents of a child with a disability.',
+    firstTimeBuyerOnly: false,
+    minCredit: 620,
+    maxIncome: 174440,
+    incomeLimitText: 'Varies by county/household size',
+    counties: ['all'],
+    serviceAreaText: 'Statewide',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Lower min contribution ($500)', '$25K DPA regardless of loan size', 'Not limited to first-time buyers', 'Cosigners allowed (unique among CHFA programs)'],
+    drawbacks: ['Must have permanent disability OR be custodial parent of child with disability', 'Requires disability documentation (SSA, VA, or doctor)'],
+    programLink: 'https://www.chfainfo.com/single-family-participating-lenders/programs-forms-and-matrices',
+    applyLink: 'https://www.chfainfo.com/getattachment/4d5eaa5e-ba08-4bd2-8729-46d2d2cd1512/CHFA-HomeAccess-Program-Matrix.pdf',
+  },
+  {
+    id: 'chac-statewide',
+    name: 'CHAC Statewide DPA',
+    administrator: 'CHAC',
+    type: 'DPA Second Mortgage',
+    maxDPAText: 'Up to 6% of price or $12,000',
+    maxAssistance: 12000,
+    description: 'Second mortgage DPA that pairs with any first mortgage lender. Free counseling and education included.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 100000,
+    incomeLimitText: '80% AMI (100% AMI in Arvada)',
+    counties: ['all'],
+    serviceAreaText: 'Statewide',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Pairs with ANY first mortgage lender', 'Free site-based education classes', 'Personal counseling included'],
+    drawbacks: ['Gift NOT allowed for min contribution — must be own funds', 'Requires savings history documentation', 'Separate counseling session required beyond education class'],
+    programLink: 'https://chaconline.org/borrowers/',
+    applyLink: 'https://chaconline.org/lenders/',
+  },
+  {
+    id: 'aurora-dpa',
+    name: 'Aurora DPA (Prop 123)',
+    administrator: 'City of Aurora',
+    type: 'DPA Second Mortgage',
+    maxDPAText: '4–10% of purchase price',
+    maxAssistance: 40000,
+    description: '0% interest silent second mortgage for Aurora properties. New program (Dec 2025) — funding still available.',
+    firstTimeBuyerOnly: false,
+    minCredit: 620,
+    maxIncome: 168000,
+    incomeLimitText: '120% AMI (~$168,000 for 4-person)',
+    counties: ['Arapahoe', 'Adams', 'Douglas'],
+    serviceAreaText: 'City of Aurora only',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Up to 10% of purchase price', 'Not limited to first-time buyers', '0% interest — no monthly payments', 'New program with funding available'],
+    drawbacks: ['Must repay on sale, refi, or payoff', 'Ends Oct 31, 2026 or when $720K fund is depleted', 'Limited funding (~24 households expected)', 'Aurora properties only'],
+    programLink: 'https://www.auroragov.org/residents/home_improvement/down_payment_assistance',
+    applyLink: 'https://www.auroragov.org/residents/home_improvement/down_payment_assistance',
+  },
+  {
+    id: 'el-paso-pikes-peak',
+    name: 'Pikes Peak DPA',
+    administrator: 'El Paso County Housing Authority',
+    type: 'DPA Forgivable Second',
+    maxDPAText: 'Up to 5% of purchase price',
     maxAssistance: 20000,
-    isGrant: true,
-    forgivable: true,
-    yearsToForgiveness: 0,
-    counties: COUNTIES,
-    maxIncome: 175000,
+    description: '0% interest DPA with partial forgiveness over 5 and 30 years. Bonus 1% for first responders, military, teachers, and healthcare workers.',
+    firstTimeBuyerOnly: false,
     minCredit: 620,
-    firstTimeBuyerOnly: false
+    maxIncome: 174440,
+    incomeLimitText: '$174,440 (govt loans) / $90,720 (conventional)',
+    counties: ['El Paso'],
+    serviceAreaText: 'El Paso County (incl. Colorado Springs)',
+    isGrant: false,
+    yearsToForgiveness: 30,
+    benefits: ['50% forgiven over first 5 years', 'Remaining 50% forgiven at 30 years', 'Not limited to first-time buyers', '+1% bonus for first responders, military, teachers, healthcare (first 75 loans)'],
+    drawbacks: ['El Paso County only', 'Must repay balance if sell/refi before forgiveness complete', 'Conventional loans have lower income limit ($90,720)'],
+    programLink: 'https://admin.elpasoco.com/economic-development/housing-programs/ppdpa/',
+    applyLink: 'https://pikespeakdpa.com/',
   },
   {
-    id: 'boulder-dpa',
+    id: 'boulder-county-dpa',
     name: 'Boulder County DPA',
-    description: 'Local assistance for Boulder County buyers',
-    maxAssistance: 30000,
-    isGrant: false,
-    forgivable: true,
-    yearsToForgiveness: 10,
+    administrator: 'City of Longmont',
+    type: 'DPA Second Mortgage',
+    maxDPAText: 'Up to 10% of price, max $40,000',
+    maxAssistance: 40000,
+    description: 'Up to $40,000 for Boulder County buyers (outside City of Boulder). Finance coaching included.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 90000,
+    incomeLimitText: '80% AMI (Boulder County)',
     counties: ['Boulder'],
-    maxIncome: 125000,
-    minCredit: 640,
-    firstTimeBuyerOnly: true
-  }
+    serviceAreaText: 'Boulder County (outside City of Boulder)',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Up to $40,000 in assistance', '0% interest deferred if below 60% AMI', '2–3% low-interest loan if 61–80% AMI', 'Personal finance coaching included'],
+    drawbacks: ['First-time buyers only', 'Max purchase price $489,000', 'Must complete CHFA education + finance coaching', 'Excludes City of Boulder'],
+    programLink: 'https://longmontcolorado.gov/housing-and-community-investment/boulder-county-down-payment-assistance/',
+    applyLink: 'https://longmontcolorado.gov/housing-and-community-investment/boulder-county-down-payment-assistance/',
+  },
+  {
+    id: 'boulder-h2o',
+    name: 'City of Boulder H2O Program',
+    administrator: 'City of Boulder / Impact Development Fund',
+    type: 'Shared Appreciation Loan',
+    maxDPAText: 'Up to $100,000',
+    maxAssistance: 100000,
+    description: 'Up to $100,000 — the largest DPA in Colorado — with 0% interest and no payments for 30 years.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 175000,
+    incomeLimitText: 'Up to 150% AMI',
+    counties: ['Boulder'],
+    serviceAreaText: 'City of Boulder only',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Up to $100,000 DPA — largest in Colorado', '0% interest, no payments for 30 years', 'Market rate homes (no deed restriction)', 'Can build equity'],
+    drawbacks: ['Shared appreciation — must repay loan + % of home value increase', 'City of Boulder only', 'First-time buyers only', 'Limited funding — first come, first served'],
+    programLink: 'https://bouldercolorado.gov/homeownership/h2o',
+    applyLink: 'https://impactdf.org/',
+  },
+  {
+    id: 'broomfield-chac',
+    name: 'Broomfield/CHAC DPA',
+    administrator: 'CHAC (for City of Broomfield)',
+    type: 'DPA Deferred Loan',
+    maxDPAText: 'Up to 10% of sales price',
+    maxAssistance: 40000,
+    description: '30-year deferred loan at 0% interest for Broomfield buyers. Administered by CHAC with free education classes.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 100000,
+    incomeLimitText: '80% AMI',
+    counties: ['Broomfield'],
+    serviceAreaText: 'City of Broomfield only',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Up to 10% DPA', '30-year deferred loan at 0% interest', 'No monthly payments', 'Free homebuyer education classes'],
+    drawbacks: ['First-time buyers only', 'Gift NOT allowed for min contribution', 'Broomfield only', 'Due on sale, transfer, or loan expiration'],
+    programLink: 'https://www.broomfield.org/1445/Housing-Programs',
+    applyLink: 'https://chaconline.org/borrowers/',
+  },
+  {
+    id: 'firstbank-dpa',
+    name: 'FirstBank DPA Program',
+    administrator: 'Impact Development Fund / FirstBank',
+    type: 'DPA Second Mortgage',
+    maxDPAText: 'Up to 20% of price, max $30,000',
+    maxAssistance: 30000,
+    description: 'Up to $30,000 statewide, including rural areas where other programs don\'t reach. Must use FirstBank.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 100000,
+    incomeLimitText: '80% AMI',
+    counties: ['all'],
+    serviceAreaText: 'Statewide (must use FirstBank mortgage)',
+    isGrant: false,
+    yearsToForgiveness: null,
+    benefits: ['Up to $30,000 in assistance', 'Available statewide including rural areas', 'Works where other programs don\'t reach'],
+    drawbacks: ['Must use FirstBank for first mortgage', 'First-time buyers only', '80% AMI income limit', 'Has monthly payments — 4% interest, 15-year term'],
+    programLink: 'https://impactdf.org/',
+    applyLink: 'https://impactdf.org/',
+  },
+  {
+    id: 'dearfield-fund',
+    name: 'Dearfield Fund for Black Wealth',
+    administrator: 'Impact Development Fund',
+    type: 'DPA Grant/Loan',
+    maxDPAText: 'Up to 15% of price, max $40,000',
+    maxAssistance: 40000,
+    description: 'Up to $40,000 DPA for Black homebuyers in the Denver Metro area. Higher 140% AMI income limit.',
+    firstTimeBuyerOnly: true,
+    minCredit: 620,
+    maxIncome: 175000,
+    incomeLimitText: '140% AMI',
+    counties: ['Adams', 'Arapahoe', 'Denver', 'Douglas', 'Jefferson', 'Broomfield'],
+    serviceAreaText: '6-county Denver Metro area',
+    isGrant: true,
+    yearsToForgiveness: 0,
+    benefits: ['Up to $40,000 in assistance', 'Higher income limit (140% AMI)', 'Up to 15% of purchase price', 'Addresses racial wealth gap in homeownership'],
+    drawbacks: ['Must self-identify as Black', 'First-time buyers only', 'Denver Metro only (6 counties)', 'Limited funding'],
+    programLink: 'https://impactdf.org/',
+    applyLink: 'https://impactdf.org/',
+  },
 ]
 
-// Lenders data
-const LENDERS = [
-  { id: 3, name: 'Colorado Lending Source', rating: 4.9, programs: ['metro-dpa', 'chfa-dpa', 'boulder-dpa'], phone: '303-555-0103' },
-  { id: 2, name: 'Elevations Credit Union', rating: 4.7, programs: ['chfa-dpa', 'boulder-dpa'], phone: '303-555-0102' },
-  { id: 1, name: 'FirstBank Mortgage', rating: 4.8, programs: ['metro-dpa', 'chfa-dpa'], phone: '303-555-0101' }
+
+const AFFORDABLE_PROGRAMS = [
+  {
+    id: 'eclt',
+    name: 'Elevation Community Land Trust (ECLT)',
+    organization: 'Elevation CLT',
+    modelType: 'Community Land Trust',
+    serviceAreaText: 'Statewide (Denver Metro, Larimer, and others)',
+    counties: ['all'],
+    incomeLimitText: '80% AMI (varies by county)',
+    requirements: ['Income and asset eligibility required', 'Complete ECLT online orientation', 'Work with ECLT-approved lender', '99-year renewable land lease'],
+    benefits: ['Below-market home prices (land cost removed)', 'Permanently affordable for future generations', 'Builds equity through ownership', 'Conventional mortgage eligible'],
+    drawbacks: ['You don\'t own the land (99-year lease)', 'Limited appreciation when you sell (shared with CLT)', 'Resale restrictions apply', 'Limited inventory — homes sell quickly'],
+    website: 'https://elevationclt.org/qualify-apply/',
+    contact: 'info@elevationclt.org | 720-822-0052',
+  },
+  {
+    id: 'cclt',
+    name: 'Colorado Community Land Trust (CCLT)',
+    organization: 'Habitat for Humanity of Metro Denver',
+    modelType: 'Community Land Trust',
+    serviceAreaText: 'Denver Metro (Lowry, Speer, Cole, Swansea neighborhoods)',
+    counties: ['Denver'],
+    incomeLimitText: '80% AMI',
+    requirements: ['Income verification', 'Complete homebuyer education', 'Mortgage pre-qualification', 'Work with Habitat-approved lenders'],
+    benefits: ['Merged with Habitat for Humanity (strong support network)', 'Permanently affordable neighborhoods', 'Equity building opportunity', 'Over 215 homes in portfolio'],
+    drawbacks: ['Limited to specific Denver neighborhoods', 'Land lease model — restricted appreciation', 'Limited inventory', 'Resale restrictions apply'],
+    website: 'https://habitatmetrodenver.org/home-programs/cclt/',
+    contact: 'stewardship@habitatmetrodenver.org | 720-496-2703',
+  },
+  {
+    id: 'thistle-clt',
+    name: 'Thistle Community Land Trust',
+    organization: 'Thistle Community Housing',
+    modelType: 'Community Land Trust',
+    serviceAreaText: 'Boulder County',
+    counties: ['Boulder'],
+    incomeLimitText: '80% AMI',
+    requirements: ['Complete Boulder County common application', 'Income and asset verification', 'CHFA certificate or mortgage pre-qualification', 'CLT supplement application'],
+    benefits: ['Boulder County focus — serves a very high-cost area', 'Average sale price ~$119K (2022)', '99-year renewable land lease', 'Mapleton Mobile Home Park option available'],
+    drawbacks: ['Boulder County only', 'Very limited inventory (~8 sales/year)', 'Applications only accepted when homes are available', 'Resale price restrictions'],
+    website: 'https://www.thistlecommunityhousing.org/community-land-trust',
+    contact: 'info@thistlecommunities.org | 303-443-0007',
+  },
+  {
+    id: 'habitat-metro-denver',
+    name: 'Habitat for Humanity Metro Denver',
+    organization: 'Habitat for Humanity',
+    modelType: 'Affordable Homeownership (Sweat Equity)',
+    serviceAreaText: 'Denver Metro',
+    counties: ['Denver', 'Adams', 'Arapahoe', 'Jefferson', 'Douglas', 'Broomfield'],
+    incomeLimitText: 'Below 80% AMI',
+    requirements: ['Income verification', 'Attend homebuyer education', 'Invest sweat equity (help build homes)', 'Affordable mortgage (~30% of income)'],
+    benefits: ['Very affordable mortgage payments (~30% of income)', 'Full homeownership (not a land trust)', 'Over 1,500 families served in 40+ years', 'Build community through sweat equity'],
+    drawbacks: ['Requires significant time commitment (sweat equity hours)', 'Competitive application process', 'Limited inventory', 'Income must qualify but be high enough to afford payments'],
+    website: 'https://habitatmetrodenver.org/home-programs/homeownership/',
+    contact: 'homeownership@habitatmetrodenver.org',
+  },
+  {
+    id: 'crhdc',
+    name: 'CRHDC Contractor Build Homes',
+    organization: 'CRHDC',
+    modelType: 'Affordable New Construction',
+    serviceAreaText: 'Rural Colorado',
+    counties: ['Larimer', 'Weld', 'Pueblo', 'El Paso'],
+    incomeLimitText: '60–120% AMI',
+    requirements: ['Income eligibility (60–120% AMI)', 'Mortgage qualification'],
+    benefits: ['Move-in ready new construction', 'Customization options (flooring, cabinets, landscaping)', 'Multiple floorplan options', 'Quality contractor-built homes'],
+    drawbacks: ['Limited to CRHDC development areas', 'Primarily rural locations', 'Inventory varies by development cycle'],
+    website: 'https://crhdc.org/services/housing-development/',
+    contact: 'CRHDC | 303-428-1448',
+  },
 ]
 
 // Realtors data
-const REALTORS = [
-  { id: 2, name: 'Mike Chen', company: 'First Home Partners', rating: 4.8, dpaDeals: 38, counties: ['Boulder', 'Jefferson'] },
-  { id: 1, name: 'Sarah Johnson', company: 'DPA Experts Realty', rating: 4.9, dpaDeals: 45, counties: ['Denver', 'Arapahoe'] },
-  { id: 3, name: 'Lisa Rodriguez', company: 'Colorado Dream Homes', rating: 4.7, dpaDeals: 52, counties: COUNTIES }
-]
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount)
@@ -239,7 +516,8 @@ function App() {
     const creditMin = getCreditMin(formData.creditScore)
 
     return PROGRAMS.filter(p => {
-      if (!formData.location.some(loc => p.counties.includes(loc))) return false
+      const countyMatch = p.counties.includes('all') || formData.location.some(loc => p.counties.includes(loc))
+      if (!countyMatch) return false
       if (income > p.maxIncome) return false
       if (creditMin < p.minCredit) return false
       if (p.firstTimeBuyerOnly && !formData.firstTimeBuyer) return false
@@ -266,17 +544,19 @@ function App() {
         monthlyPayment,
         downPaymentNeeded: Math.max(0, maxPrice * 0.035 - assistance - savings)
       }
-    }).sort((a, b) => b.assistance - a.assistance)
+    }).sort((a, b) => a.program.name.localeCompare(b.program.name))
   }, [eligiblePrograms, formData.income, formData.savings])
 
   // Matching lenders and realtors
-  const matchingLenders = formData.selectedPackage
-    ? LENDERS.filter(l => l.programs.includes(formData.selectedPackage.program.id))
-    : LENDERS
+  const matchingLenders = lenders.slice().sort((a, b) => a.name.localeCompare(b.name))
 
-  const matchingRealtors = formData.location.length
-    ? REALTORS.filter(r => formData.location.some(loc => r.counties.includes(loc)))
-    : REALTORS
+  const matchingRealtors = realtors
+    .filter(r => !formData.location.length || formData.location.some(loc => r.counties.includes(loc) || r.counties.includes('all')))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const matchingAffordablePrograms = AFFORDABLE_PROGRAMS
+    .filter(p => !formData.location.length || p.counties.includes('all') || formData.location.some(loc => p.counties.includes(loc)))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const canContinue = step === 1 ? (formData.location.length && formData.income && formData.creditScore) : true
   const progressValue = ((step + 1) / STEPS.length) * 100
@@ -592,8 +872,8 @@ function App() {
                       <Gift className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-gray-900">Choose Your Package</h2>
-                      <p className="text-sm text-gray-600">If you would like to move forward with down-payment assistance, select the program you are interested in exploring.</p>
+                      <h2 className="text-lg font-bold text-gray-900">Select the Programs You Want to Explore</h2>
+                      <p className="text-sm text-gray-600">If you would like to move forward with down-payment assistance, select the program(s) you are interested in exploring.</p>
                     </div>
                   </div>
                 </div>
@@ -602,28 +882,65 @@ function App() {
                   {packages.length > 0 ? packages.map((pkg, idx) => (
                     <Card
                       key={pkg.program.id}
-                      className={`border-2 cursor-pointer transition-all ${formData.selectedPackage?.program.id === pkg.program.id ? 'border-blue-500 ring-2 ring-blue-200' : 'hover:border-gray-300'}`}
+                      className={`border-2 cursor-pointer transition-all ${formData.selectedPackage?.program.id === pkg.program.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/30' : 'hover:border-gray-300'}`}
                       onClick={() => updateFormData({ selectedPackage: pkg })}
                     >
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              {idx === 0 && <Badge className="bg-yellow-500">Best Value</Badge>}
-                              <h3 className="text-xl font-bold">{pkg.program.name}</h3>
+                      <CardContent className="pt-5 space-y-4">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {idx === 0 && <Badge className="bg-yellow-500 text-white text-xs">Highest Assistance</Badge>}
+                              {pkg.program.isGrant && <Badge className="bg-green-600 text-white text-xs">Grant</Badge>}
+                              {pkg.program.firstTimeBuyerOnly && <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">First-time buyer</Badge>}
                             </div>
-                            <p className="text-gray-600">{pkg.program.description}</p>
-                            <div className="flex gap-4 text-sm">
-                              <span className="text-green-600 font-medium">
-                                {pkg.program.isGrant ? '✓ Grant (free money!)' : `✓ Forgiven after ${pkg.program.yearsToForgiveness} years`}
-                              </span>
+                            <h3 className="text-lg font-bold text-gray-900">{pkg.program.name}</h3>
+                            <p className="text-xs text-gray-500">{pkg.program.administrator} · {pkg.program.serviceAreaText}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xl font-bold text-green-600">{pkg.program.maxDPAText}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">max assistance</p>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-sm text-gray-600">{pkg.program.description}</p>
+
+                        {/* Benefits */}
+                        <div className="space-y-1">
+                          {pkg.program.benefits.slice(0, 3).map((b, i) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-green-500 flex-shrink-0 mt-0.5">✓</span>
+                              <span className="text-gray-700">{b}</span>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-3xl font-bold text-green-600">{formatCurrency(pkg.assistance)}</p>
-                            <p className="text-sm text-gray-500">assistance</p>
-                            <p className="text-lg font-semibold mt-2">{formatCurrency(pkg.monthlyPayment)}/mo</p>
-                          </div>
+                          ))}
+                        </div>
+
+                        {/* Drawbacks */}
+                        <div className="space-y-1">
+                          {pkg.program.drawbacks.slice(0, 2).map((d, i) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠</span>
+                              <span className="text-gray-600">{d}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-2 border-t gap-2">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Income limit:</span> {pkg.program.incomeLimitText}
+                          </p>
+                          <a
+                            href={pkg.program.programLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1 flex-shrink-0"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Learn more
+                          </a>
                         </div>
                       </CardContent>
                     </Card>
@@ -669,65 +986,77 @@ function App() {
                       <Building className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-gray-900">Choose a Program</h2>
-                      <p className="text-sm text-gray-600">If you would like to explore affordable housing, select the program you are interested in learning more about.</p>
+                      <h2 className="text-lg font-bold text-gray-900">Select the Programs You Want to Explore</h2>
+                      <p className="text-sm text-gray-600">If you would like to explore affordable housing, select the program(s) you are interested in learning about.</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {[
-                    {
-                      id: 'chfa',
-                      name: 'CHFA Homeownership Programs',
-                      tagline: 'Statewide low-interest loans and grants',
-                      description: 'Colorado Housing and Finance Authority offers 30-year fixed-rate mortgages through approved lenders, paired with down payment assistance grants or zero-interest second loans up to $25,000.',
-                      eligibility: 'Low-to-moderate income buyers statewide. Credit score of 620+ typically required. Income and purchase price limits vary by county. Homebuyer education required.',
-                      url: 'https://chfainfo.com',
-                      urlLabel: 'chfainfo.com',
-                    },
-                    {
-                      id: 'eclt',
-                      name: 'Elevation Community Land Trust',
-                      tagline: 'Permanently affordable homeownership',
-                      description: 'ECLT retains ownership of the land while you own the home, keeping purchase prices below market rate. A shared equity formula ensures long-term affordability while you build real equity.',
-                      eligibility: 'Households at ~70–80% AMI. Homes in Denver, Fort Collins, and surrounding communities. Listings from $150,000–$305,000.',
-                      url: 'https://elevationclt.org',
-                      urlLabel: 'elevationclt.org',
-                    },
-                  ].map(program => (
+                  {matchingAffordablePrograms.length > 0 ? matchingAffordablePrograms.map(program => (
                     <Card
                       key={program.id}
-                      className={`border-2 cursor-pointer transition-all ${selectedHousing === program.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/40' : 'hover:border-gray-300'}`}
+                      className={`border-2 cursor-pointer transition-all ${selectedHousing === program.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/30' : 'hover:border-gray-300'}`}
                       onClick={() => setSelectedHousing(prev => prev === program.id ? null : program.id)}
                     >
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
+                      <CardContent className="pt-5 space-y-4">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-1">
+                            <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">{program.modelType}</Badge>
                             <h3 className="text-lg font-bold text-gray-900">{program.name}</h3>
-                            <p className="text-sm text-blue-600 font-medium">{program.tagline}</p>
+                            <p className="text-xs text-gray-500">{program.organization} · {program.serviceAreaText}</p>
                           </div>
                           {selectedHousing === program.id && (
                             <CheckCircle2 className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">{program.description}</p>
-                        <div className="flex gap-2 text-xs text-gray-500 mb-3">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
-                          <span>{program.eligibility}</span>
+
+                        {/* Benefits */}
+                        <div className="space-y-1">
+                          {program.benefits.slice(0, 3).map((b, i) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-green-500 flex-shrink-0 mt-0.5">✓</span>
+                              <span className="text-gray-700">{b}</span>
+                            </div>
+                          ))}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
-                          onClick={e => { e.stopPropagation(); window.open(program.url, '_blank') }}
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                          {program.urlLabel}
-                        </Button>
+
+                        {/* Drawbacks */}
+                        <div className="space-y-1">
+                          {program.drawbacks.slice(0, 2).map((d, i) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠</span>
+                              <span className="text-gray-600">{d}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-2 border-t gap-2">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Income limit:</span> {program.incomeLimitText}
+                          </p>
+                          <a
+                            href={program.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1 flex-shrink-0"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Learn more
+                          </a>
+                        </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  )) : (
+                    <Card className="border-2">
+                      <CardContent className="pt-6 text-center text-gray-500 text-sm">
+                        Complete your profile to see programs available in your area.
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </div>
             )}
@@ -741,8 +1070,8 @@ function App() {
               <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
                 <Building className="w-7 h-7 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">Choose Your Realtor</h1>
-              <p className="text-lg text-gray-600">Down Payment Assistance-experienced agents in {formData.location.length ? formData.location.join(', ') : 'your area'}</p>
+              <h1 className="text-3xl font-bold text-gray-900">Trusted Partners</h1>
+              <p className="text-lg text-gray-600">The next step in your home-buying journey is to select and reach out to a realtor. Reach out to one you know or select one from our list of trusted partners below who have down payment assistance experience in {formData.location.length ? formData.location.join(', ') : 'your area'}</p>
             </div>
 
             <div className="space-y-4">
@@ -756,10 +1085,16 @@ function App() {
                     <h3 className="text-xl font-bold">{realtor.name}</h3>
                     <p className="text-gray-600">{realtor.company}</p>
                     <div className="flex items-center gap-4 mt-2">
-                      <span className="flex items-center gap-1 text-amber-500">
-                        <Star className="w-4 h-4 fill-current" /> {realtor.rating}
-                      </span>
-                      <span className="text-sm text-gray-500">{realtor.dpaDeals} Down Payment Assistance transactions</span>
+                      {realtor.rating > 0 && (
+                        <span className="flex items-center gap-1 text-amber-500">
+                          <Star className="w-4 h-4 fill-current" /> {realtor.rating}
+                        </span>
+                      )}
+                      {realtor.phone && (
+                        <span className="flex items-center gap-1 text-gray-500">
+                          <Phone className="w-4 h-4" /> {realtor.phone}
+                        </span>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
