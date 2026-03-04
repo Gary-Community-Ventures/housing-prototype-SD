@@ -89,6 +89,7 @@ const PROGRAMS = [
     maxAssistance: 25000,
     description: '$25,000 DPA for first-generation homebuyers whose parents never owned a home. Foster care alumni eligible.',
     firstTimeBuyerOnly: true,
+    requiresFirstGen: true,
     minCredit: 620,
     maxIncome: 174440,
     maxIncomeByCounty: {
@@ -115,6 +116,7 @@ const PROGRAMS = [
     maxAssistance: 25000,
     description: '$25,000 DPA for buyers with a permanent disability or custodial parents of a child with a disability.',
     firstTimeBuyerOnly: false,
+    requiresDisability: true,
     minCredit: 620,
     maxIncome: 174440,
     incomeLimitText: 'Varies by county/household size',
@@ -283,6 +285,7 @@ const PROGRAMS = [
     maxAssistance: 40000,
     description: 'Up to $40,000 DPA for Black homebuyers in the Denver Metro area. Higher 140% AMI income limit.',
     firstTimeBuyerOnly: true,
+    requiresBlack: true,
     minCredit: 620,
     maxIncome: 175000,
     incomeLimitText: '140% AMI',
@@ -480,6 +483,10 @@ function App() {
     creditScore: '',
     savings: '',
     firstTimeBuyer: false,
+    firstGenBuyer: false,
+    hasDisability: false,
+    hispanicLatino: false,
+    raceEthnicity: [],
     selectedPackage: null,
     selectedRealtor: null,
     selectedLender: null,
@@ -535,9 +542,12 @@ function App() {
       if (income > effectiveMaxIncome) return false
       if (creditMin < p.minCredit) return false
       if (p.firstTimeBuyerOnly && !formData.firstTimeBuyer) return false
+      if (p.requiresDisability && !formData.hasDisability) return false
+      if (p.requiresFirstGen && !formData.firstGenBuyer) return false
+      if (p.requiresBlack && !formData.raceEthnicity.includes('black-african-american')) return false
       return true
     })
-  }, [formData.location, formData.income, formData.creditScore, formData.firstTimeBuyer])  // eslint-disable-line
+  }, [formData.location, formData.income, formData.creditScore, formData.firstTimeBuyer, formData.hasDisability, formData.firstGenBuyer, formData.raceEthnicity])  // eslint-disable-line
 
   // Calculate packages
   const packages = useMemo(() => {
@@ -724,16 +734,92 @@ function App() {
             </div>
 
             <Card className="border-2">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
+              <CardHeader>
+                <CardTitle className="text-base">About You</CardTitle>
+                <CardDescription>Helps match you with programs designed for specific groups. All fields are optional.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3">
                   <Checkbox
                     id="firstTime"
                     checked={formData.firstTimeBuyer}
                     onCheckedChange={(c) => updateFormData({ firstTimeBuyer: c })}
+                    className="mt-0.5"
                   />
                   <div>
                     <Label htmlFor="firstTime" className="font-medium cursor-pointer">First-time homebuyer</Label>
                     <p className="text-sm text-gray-500">Haven't owned a home in the past 3 years</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="firstGen"
+                    checked={formData.firstGenBuyer}
+                    onCheckedChange={(c) => updateFormData({ firstGenBuyer: c })}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <Label htmlFor="firstGen" className="font-medium cursor-pointer">First-generation homebuyer</Label>
+                    <p className="text-sm text-gray-500">Neither you nor your parents/guardians have ever owned a home</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="disability"
+                    checked={formData.hasDisability}
+                    onCheckedChange={(c) => updateFormData({ hasDisability: c })}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <Label htmlFor="disability" className="font-medium cursor-pointer">I have a disability</Label>
+                    <p className="text-sm text-gray-500">Permanent disability, or custodial parent of a child with a disability</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader>
+                <CardTitle className="text-base">Race &amp; Ethnicity</CardTitle>
+                <CardDescription>Census-style. Select all that apply. Some programs are designed for specific communities.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Are you of Hispanic, Latino, or Spanish origin?</p>
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="hispanicLatino"
+                      checked={formData.hispanicLatino}
+                      onCheckedChange={(c) => updateFormData({ hispanicLatino: c })}
+                    />
+                    <Label htmlFor="hispanicLatino" className="cursor-pointer">Yes, Hispanic, Latino, or Spanish origin</Label>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">What is your race? <span className="font-normal text-gray-500">(Select all that apply)</span></p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { value: 'white', label: 'White' },
+                      { value: 'black-african-american', label: 'Black or African American' },
+                      { value: 'american-indian-alaska-native', label: 'American Indian or Alaska Native' },
+                      { value: 'asian', label: 'Asian' },
+                      { value: 'native-hawaiian-pacific-islander', label: 'Native Hawaiian or Other Pacific Islander' },
+                      { value: 'some-other-race', label: 'Some other race' },
+                    ].map(({ value, label }) => (
+                      <div key={value} className="flex items-center gap-3">
+                        <Checkbox
+                          id={`race-${value}`}
+                          checked={formData.raceEthnicity.includes(value)}
+                          onCheckedChange={(c) => {
+                            const updated = c
+                              ? [...formData.raceEthnicity, value]
+                              : formData.raceEthnicity.filter(r => r !== value)
+                            updateFormData({ raceEthnicity: updated })
+                          }}
+                        />
+                        <Label htmlFor={`race-${value}`} className="cursor-pointer text-sm">{label}</Label>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>
