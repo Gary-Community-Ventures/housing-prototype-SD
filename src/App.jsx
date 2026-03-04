@@ -44,6 +44,11 @@ const PROGRAMS = [
     firstTimeBuyerOnly: true,
     minCredit: 620,
     maxIncome: 174440,
+    maxIncomeByCounty: {
+      Adams: 161110, Arapahoe: 161110, Boulder: 173190, Broomfield: 161110,
+      Denver: 161110, Douglas: 161110, 'El Paso': 143290, Jefferson: 161110,
+      Larimer: 146740, Pueblo: 174440, Weld: 174440
+    },
     incomeLimitText: 'Varies by county/household size',
     counties: ['all'],
     serviceAreaText: 'Statewide',
@@ -86,6 +91,11 @@ const PROGRAMS = [
     firstTimeBuyerOnly: true,
     minCredit: 620,
     maxIncome: 174440,
+    maxIncomeByCounty: {
+      Adams: 161110, Arapahoe: 161110, Boulder: 173190, Broomfield: 161110,
+      Denver: 161110, Douglas: 161110, 'El Paso': 143290, Jefferson: 161110,
+      Larimer: 146740, Pueblo: 174440, Weld: 174440
+    },
     incomeLimitText: 'Varies by county/household size',
     counties: ['all'],
     serviceAreaText: 'Statewide',
@@ -438,6 +448,7 @@ function App() {
   const [contactComplete, setContactComplete] = useState({ realtor: false, lender: false })
   const [optionsTab, setOptionsTab] = useState('dpa')
   const [selectedHousing, setSelectedHousing] = useState(null)
+  const [selectionConflict, setSelectionConflict] = useState(null) // 'dpa' | 'housing' | null
   const [checkedDocs, setCheckedDocs] = useState({})
   const DOC_COUNT = 6
   const toggleStepComplete = (s) => {
@@ -518,7 +529,10 @@ function App() {
     return PROGRAMS.filter(p => {
       const countyMatch = p.counties.includes('all') || formData.location.some(loc => p.counties.includes(loc))
       if (!countyMatch) return false
-      if (income > p.maxIncome) return false
+      const effectiveMaxIncome = p.maxIncomeByCounty
+        ? Math.max(...formData.location.map(loc => p.maxIncomeByCounty[loc] || p.maxIncome))
+        : p.maxIncome
+      if (income > effectiveMaxIncome) return false
       if (creditMin < p.minCredit) return false
       if (p.firstTimeBuyerOnly && !formData.firstTimeBuyer) return false
       return true
@@ -727,15 +741,65 @@ function App() {
           </div>
         )
 
-      case 2: // Affordability
-        const maxPrice = Math.min((parseInt(formData.income) || 0) * 4.5, 600000)
-        const minPrice = Math.round(maxPrice * 0.65)
-        const requiredDown = maxPrice * 0.035
-        const calcMonthly = (price) => {
-          const loan = price * 0.965
-          const monthly = (loan * 0.065 / 12) + (price * 0.007 / 12) + 150
-          return Math.round(monthly)
+      case 2: { // Affordability
+        // ── Step 1: Gross Monthly Income ──────────────────────────────
+        const income = parseInt(formData.income) || 0
+        const GMI = income / 12
+
+        // ── Step 8: Interest rate by credit score ────────────────────
+        // Base: 5.98% market (Feb 2026) + buffer → 6.25%; adjustments per credit tier
+        const RATE_BY_CREDIT = {
+          'below-580': 6.75, '580-619': 6.75,
+          '620-659': 6.75,   '660-699': 6.50,
+          '700-739': 6.25,   '740-plus': 6.25,
         }
+        const displayRate = RATE_BY_CREDIT[formData.creditScore] || 6.25
+        const annualRate = displayRate / 100
+        const r = annualRate / 12
+
+        // ── Step 3: Monthly Payment Factor (MPF) ─────────────────────
+        const MPF = (r * Math.pow(1 + r, 360)) / (Math.pow(1 + r, 360) - 1)
+
+        // ── Step 5: Down payment % ────────────────────────────────────
+        // FHA (580+): 3.5% | Conventional (620+): can use 3-5%; use 3.5% for FHA scenario
+        const creditMin = getCreditMin(formData.creditScore)
+        const DOWN_PCT = creditMin >= 620 ? 0.035 : 0.035 // FHA 3.5% for all first-time buyer scenarios
+
+        // ── County property tax rate lookup ───────────────────────────
+        const COUNTY_TAX = {
+          Adams: 0.0055, Arapahoe: 0.0055, Boulder: 0.0045,
+          Broomfield: 0.0050, Denver: 0.0055, Douglas: 0.0050,
+          'El Paso': 0.0045, Jefferson: 0.0050,
+          Larimer: 0.0045, Pueblo: 0.0055, Weld: 0.0050,
+        }
+        const primaryCounty = formData.location[0]
+        const taxRate = COUNTY_TAX[primaryCounty] || 0.0055
+        const MIP_RATE = 0.0055  // FHA annual MIP (HUD ML 2023-05)
+        const MONTHLY_INS = 125  // flat homeowner's insurance estimate
+
+        // ── Step 4: Purchase price (algebraic solve) ──────────────────
+        // P = (Max PITI − Monthly Insurance) ÷ [MPF × (1−dp) + (tax + MIP) ÷ 12]
+        const denom = MPF * (1 - DOWN_PCT) + (taxRate + MIP_RATE) / 12
+        const lowPITI  = GMI * 0.28  // conservative 28% front-end DTI
+        const highPITI = GMI * 0.31  // FHA max 31% front-end DTI
+        const lowPrice  = denom > 0 ? Math.round((lowPITI  - MONTHLY_INS) / denom / 1000) * 1000 : 0
+        const highPrice = denom > 0 ? Math.round((highPITI - MONTHLY_INS) / denom / 1000) * 1000 : 0
+
+        // ── Monthly PITI helper ───────────────────────────────────────
+        const calcMonthly = (price) => {
+          if (!price) return 0
+          const loan = price * (1 - DOWN_PCT)
+          return Math.round(MPF * loan + price * taxRate / 12 + MONTHLY_INS + loan * MIP_RATE / 12)
+        }
+
+        // ── Step 6: Down payment gap ──────────────────────────────────
+        const savings = parseInt(formData.savings) || 0
+        const minDown = Math.round(highPrice * DOWN_PCT)
+        const closingCosts = Math.round(highPrice * 0.025)
+        const totalCashNeeded = minDown + closingCosts
+        const gap = Math.max(0, totalCashNeeded - savings)
+        const maxDPA = eligiblePrograms.length > 0 ? Math.max(...eligiblePrograms.map(p => p.maxAssistance)) : 0
+        const adjustedGap = Math.max(0, gap - maxDPA)
 
         return (
           <div className="space-y-8">
@@ -746,62 +810,86 @@ function App() {
               <h1 className="text-3xl font-bold text-gray-900">Your Buying Power</h1>
             </div>
 
-            {/* Full-width green affordability card */}
+            {/* Price range card */}
             <Card className="border-2 border-green-200 bg-green-50">
-              <CardContent className="pt-6 flex flex-col items-center justify-center">
-                <p className="text-sm text-green-700 mb-3 text-center font-bold">Based on your income and savings, you can afford:</p>
-                <div className="flex items-center justify-center gap-4">
+              <CardContent className="pt-6 flex flex-col items-center justify-center gap-2">
+                <p className="text-sm text-green-700 font-bold text-center">Estimated purchase price range based on your income</p>
+                <div className="flex items-center justify-center gap-4 mt-1">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-800">{formatCurrency(minPrice)}</p>
-                    <p className="text-xs text-green-600">{formatCurrency(calcMonthly(minPrice))}/mo</p>
+                    <p className="text-2xl font-bold text-green-800">{formatCurrency(lowPrice)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">{formatCurrency(calcMonthly(lowPrice))}/mo PITI</p>
+                    <p className="text-xs text-green-500">conservative</p>
                   </div>
                   <div className="text-green-400 font-bold text-xl">→</div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-800">{formatCurrency(maxPrice)}</p>
-                    <p className="text-xs text-green-600">{formatCurrency(calcMonthly(maxPrice))}/mo</p>
+                    <p className="text-2xl font-bold text-green-800">{formatCurrency(highPrice)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">{formatCurrency(calcMonthly(highPrice))}/mo PITI</p>
+                    <p className="text-xs text-green-500">FHA maximum</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Side-by-side: Required Down + Max DPA */}
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Cash to close breakdown */}
+            <div className="grid md:grid-cols-3 gap-4">
               <Card className="border-2 border-blue-200 bg-blue-50">
-                <CardContent className="pt-6 flex flex-col items-center justify-start h-full text-center">
-                  <p className="text-sm text-blue-700 mb-1 font-bold text-center">Required Down (3.5%)</p>
-                  <p className="text-xs text-blue-500 mb-3 text-center">Amount you are required to put in for the down payment based on the maximum assistance you are eligible to receive.</p>
-                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(requiredDown)}</p>
+                <CardContent className="pt-5 flex flex-col items-center text-center">
+                  <p className="text-sm text-blue-700 font-bold">Min. Down Payment</p>
+                  <p className="text-xs text-blue-500 mt-1 mb-2">3.5% of purchase price (FHA)</p>
+                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(minDown)}</p>
                 </CardContent>
               </Card>
-              <Card className="border-2 border-purple-200 bg-purple-50">
-                <CardContent className="pt-6 flex flex-col items-center justify-start h-full text-center">
-                  <p className="text-sm text-purple-700 mb-1 font-bold text-center">Maximum Down Payment Assistance</p>
-                  <p className="text-xs text-purple-500 mb-3 text-center">Maximum down payment assistance you are eligible for based on what you can afford.</p>
-                  <p className="text-2xl font-bold text-purple-800">
-                    {eligiblePrograms.length > 0
-                      ? formatCurrency(Math.max(...eligiblePrograms.map(p => p.maxAssistance)))
-                      : '$0'}
+              <Card className="border-2 border-orange-200 bg-orange-50">
+                <CardContent className="pt-5 flex flex-col items-center text-center">
+                  <p className="text-sm text-orange-700 font-bold">Est. Closing Costs</p>
+                  <p className="text-xs text-orange-500 mt-1 mb-2">~2.5% of purchase price</p>
+                  <p className="text-2xl font-bold text-orange-800">{formatCurrency(closingCosts)}</p>
+                </CardContent>
+              </Card>
+              <Card className={`border-2 ${gap === 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <CardContent className="pt-5 flex flex-col items-center text-center">
+                  <p className={`text-sm font-bold ${gap === 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {gap === 0 ? 'Savings Cover It ✓' : 'Gap to Close'}
+                  </p>
+                  <p className={`text-xs mt-1 mb-2 ${gap === 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {gap === 0 ? `You have ${formatCurrency(savings)} saved` : 'DPA programs can help cover this'}
+                  </p>
+                  <p className={`text-2xl font-bold ${gap === 0 ? 'text-green-800' : 'text-red-800'}`}>
+                    {gap === 0 ? formatCurrency(0) : formatCurrency(gap)}
                   </p>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Max DPA */}
+            {eligiblePrograms.length > 0 && gap > 0 && (
+              <Card className="border-2 border-purple-200 bg-purple-50">
+                <CardContent className="pt-5 flex flex-col items-center text-center">
+                  <p className="text-sm text-purple-700 font-bold">Maximum Down Payment Assistance Available</p>
+                  <p className="text-xs text-purple-500 mt-1 mb-2">
+                    {adjustedGap === 0
+                      ? 'DPA programs can fully cover your gap'
+                      : `After DPA, remaining gap: ${formatCurrency(adjustedGap)}`}
+                  </p>
+                  <p className="text-2xl font-bold text-purple-800">{formatCurrency(maxDPA)}</p>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="border-2">
               <CardHeader>
-                <CardTitle className="text-center py-2 text-lg">Eligible Programs Found</CardTitle>
+                <CardTitle className="text-center py-2 text-lg">
+                  We found <span className="text-purple-700">{eligiblePrograms.length}</span> Programs You May Be Eligible For
+                </CardTitle>
+                <p className="text-center text-sm text-gray-500">More details on each program will be available on the next step.</p>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-center mb-4">
-                  <div className="bg-purple-100 border-2 border-purple-300 rounded-xl px-4 py-1.5">
-                    <p className="text-2xl font-bold text-purple-700 text-center">{eligiblePrograms.length}</p>
-                  </div>
-                </div>
                 <div className="space-y-2">
                   {eligiblePrograms.map(p => (
                     <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium">{p.name}</span>
                       <Badge variant={p.isGrant ? "default" : "secondary"}>
-                        {p.isGrant ? 'Grant' : 'Forgivable'} up to {formatCurrency(p.maxAssistance)}
+                        {p.isGrant ? 'Grant' : 'Loan'} up to {p.maxDPAText}
                       </Badge>
                     </div>
                   ))}
@@ -811,8 +899,14 @@ function App() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Rate assumption disclosure */}
+            <p className="text-xs text-gray-400 text-center px-2">
+              Estimates based on a {displayRate}% 30-yr fixed rate as of March 2026, {primaryCounty ? `${primaryCounty} County` : 'Colorado'} property tax rate, and FHA 3.5% down payment. Actual buying power and program eligibility will be confirmed by a lender. All figures are educational estimates only.
+            </p>
           </div>
         )
+      } // end case 2
 
       case 3: // Your Options
         return (
@@ -878,19 +972,36 @@ function App() {
                   </div>
                 </div>
 
+                {selectionConflict === 'dpa' && (
+                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+                    <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠</span>
+                    <div>
+                      <p className="font-semibold">You already have an Affordable Housing program selected.</p>
+                      <p className="mt-0.5">Please deselect it on the <button className="underline font-medium" onClick={() => { setOptionsTab('clt'); setSelectionConflict(null) }}>Affordable Housing tab</button> before choosing a Down-Payment Assistance program.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {packages.length > 0 ? packages.map((pkg, idx) => (
                     <Card
                       key={pkg.program.id}
                       className={`border-2 cursor-pointer transition-all ${formData.selectedPackage?.program.id === pkg.program.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/30' : 'hover:border-gray-300'}`}
-                      onClick={() => updateFormData({ selectedPackage: pkg })}
+                      onClick={() => {
+                        if (selectedHousing) {
+                          setSelectionConflict('dpa')
+                          return
+                        }
+                        setSelectionConflict(null)
+                        updateFormData({ selectedPackage: pkg })
+                      }}
                     >
                       <CardContent className="pt-5 space-y-4">
                         {/* Header */}
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
-                              {idx === 0 && <Badge className="bg-yellow-500 text-white text-xs">Highest Assistance</Badge>}
+
                               {pkg.program.isGrant && <Badge className="bg-green-600 text-white text-xs">Grant</Badge>}
                               {pkg.program.firstTimeBuyerOnly && <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">First-time buyer</Badge>}
                             </div>
@@ -992,12 +1103,29 @@ function App() {
                   </div>
                 </div>
 
+                {selectionConflict === 'housing' && (
+                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+                    <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠</span>
+                    <div>
+                      <p className="font-semibold">You already have a Down-Payment Assistance program selected.</p>
+                      <p className="mt-0.5">Please deselect it on the <button className="underline font-medium" onClick={() => { setOptionsTab('dpa'); setSelectionConflict(null) }}>Down-Payment Assistance tab</button> before choosing an Affordable Housing program.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {matchingAffordablePrograms.length > 0 ? matchingAffordablePrograms.map(program => (
                     <Card
                       key={program.id}
                       className={`border-2 cursor-pointer transition-all ${selectedHousing === program.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/30' : 'hover:border-gray-300'}`}
-                      onClick={() => setSelectedHousing(prev => prev === program.id ? null : program.id)}
+                      onClick={() => {
+                        if (formData.selectedPackage && selectedHousing !== program.id) {
+                          setSelectionConflict('housing')
+                          return
+                        }
+                        setSelectionConflict(null)
+                        setSelectedHousing(prev => prev === program.id ? null : program.id)
+                      }}
                     >
                       <CardContent className="pt-5 space-y-4">
                         {/* Header */}
@@ -1138,7 +1266,7 @@ function App() {
           </div>
         )
 
-      case 6: // Prepare and Apply
+      case 6: { // Prepare and Apply
         const necessaryDocuments = [
           { label: 'Pay Stubs', description: 'Last 2 pay stubs (most recent 30 days)' },
           { label: 'Tax Returns', description: 'Last 2 years of federal tax returns' },
@@ -1362,6 +1490,7 @@ function App() {
               <CardContent className="space-y-4">
 
                 {/* DPA Selection */}
+                {formData.selectedPackage && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Gift className="w-4 h-4 text-purple-600" />
@@ -1386,72 +1515,144 @@ function App() {
                         </div>
                       </CardContent>
                     </Card>
-                  ) : (
-                    <p className="text-gray-400 italic text-sm pl-1">No program selected</p>
-                  )}
+                  ) : null}
                 </div>
+                )}
 
                 {/* Affordable Housing Selection */}
+                {selectedHousing && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Building className="w-4 h-4 text-blue-600" />
                     <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">Affordable Housing</p>
                   </div>
                   {selectedHousing ? (() => {
-                    const housingDetails = {
-                      chfa: {
-                        name: 'CHFA Homeownership Programs',
-                        tagline: 'Statewide low-interest loans and grants',
-                        description: 'Colorado Housing and Finance Authority offers 30-year fixed-rate mortgages through approved lenders, paired with down payment assistance grants or zero-interest second loans up to $25,000.',
-                        eligibility: 'Low-to-moderate income buyers statewide. Credit score of 620+ typically required. Income and purchase price limits vary by county. Homebuyer education required.',
-                        url: 'https://chfainfo.com',
-                        urlLabel: 'chfainfo.com',
-                      },
-                      eclt: {
-                        name: 'Elevation Community Land Trust',
-                        tagline: 'Permanently affordable homeownership',
-                        description: 'ECLT retains ownership of the land while you own the home, keeping purchase prices below market rate. A shared equity formula ensures long-term affordability while you build real equity.',
-                        eligibility: 'Households at ~70–80% AMI. Homes in Denver, Fort Collins, and surrounding communities. Listings from $150,000–$305,000.',
-                        url: 'https://elevationclt.org',
-                        urlLabel: 'elevationclt.org',
-                      },
-                    }[selectedHousing]
+                    const housingProgram = AFFORDABLE_PROGRAMS.find(p => p.id === selectedHousing)
+                    if (!housingProgram) return <p className="text-gray-400 italic text-sm pl-1">No program selected</p>
+                    const isCLT = housingProgram.modelType === 'Community Land Trust'
                     return (
-                      <Card className="border-2 border-blue-200">
-                        <CardContent className="pt-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="text-lg font-bold text-gray-900">{housingDetails.name}</h3>
-                              <p className="text-sm text-blue-600 font-medium">{housingDetails.tagline}</p>
+                      <div className="space-y-4">
+                        <Card className="border-2 border-blue-200">
+                          <CardContent className="pt-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-0.5">
+                                <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">{housingProgram.modelType}</Badge>
+                                <h3 className="text-lg font-bold text-gray-900">{housingProgram.name}</h3>
+                                <p className="text-xs text-gray-500">{housingProgram.organization} · {housingProgram.serviceAreaText}</p>
+                              </div>
+                              <CheckCircle2 className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
                             </div>
-                            <CheckCircle2 className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{housingDetails.description}</p>
-                          <div className="flex gap-2 text-xs text-gray-500 mb-3">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
-                            <span>{housingDetails.eligibility}</span>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
-                            onClick={() => window.open(housingDetails.url, '_blank')}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                            {housingDetails.urlLabel}
-                          </Button>
-                        </CardContent>
-                      </Card>
+                            <div className="space-y-1">
+                              {housingProgram.benefits.slice(0, 3).map((b, i) => (
+                                <div key={i} className="flex items-start gap-2 text-sm">
+                                  <span className="text-green-500 flex-shrink-0 mt-0.5">✓</span>
+                                  <span className="text-gray-700">{b}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <p className="text-xs text-gray-500"><span className="font-medium">Income limit:</span> {housingProgram.incomeLimitText}</p>
+                              <a href={housingProgram.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                <ExternalLink className="w-3 h-3" />Learn more
+                              </a>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Affordable Housing Diagram */}
+                        <Card className="border-2 border-blue-100 bg-blue-50/40">
+                          <CardContent className="pt-5 pb-5">
+                            <h4 className="text-sm font-bold text-blue-800 text-center mb-4">
+                              {isCLT ? 'How Community Land Trusts Work' : 'How Affordable Housing Works'}
+                            </h4>
+
+                            {isCLT ? (
+                              <div className="space-y-4">
+                                {/* Ownership split */}
+                                <div className="flex items-stretch gap-2">
+                                  <div className="flex-1 bg-white border-2 border-blue-300 rounded-xl p-3 text-center">
+                                    <div className="text-2xl mb-1">🏠</div>
+                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">You Own</p>
+                                    <p className="text-sm font-semibold text-gray-800 mt-0.5">The Home</p>
+                                    <p className="text-xs text-gray-500 mt-1">Full mortgage, build equity, make improvements</p>
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center gap-1 text-blue-400 text-xs font-medium px-1">
+                                    <span>+</span>
+                                  </div>
+                                  <div className="flex-1 bg-white border-2 border-teal-300 rounded-xl p-3 text-center">
+                                    <div className="text-2xl mb-1">🌱</div>
+                                    <p className="text-xs font-bold text-teal-700 uppercase tracking-wide">{housingProgram.organization} Owns</p>
+                                    <p className="text-sm font-semibold text-gray-800 mt-0.5">The Land</p>
+                                    <p className="text-xs text-gray-500 mt-1">99-year renewable lease keeps costs low</p>
+                                  </div>
+                                </div>
+
+                                {/* Arrow down */}
+                                <div className="flex justify-center text-gray-400 text-lg">↓</div>
+
+                                {/* Result: lower price */}
+                                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
+                                  <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Result at Purchase</p>
+                                  <p className="text-sm text-gray-700 mt-1">Home price is <span className="font-semibold text-green-700">significantly below market rate</span> because land value is removed</p>
+                                </div>
+
+                                {/* Arrow down */}
+                                <div className="flex justify-center text-gray-400 text-lg">↓</div>
+
+                                {/* When you sell */}
+                                <div className="bg-white border-2 border-amber-200 rounded-xl p-3">
+                                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wide text-center mb-2">When You Sell</p>
+                                  <div className="flex gap-2">
+                                    <div className="flex-1 bg-amber-50 rounded-lg p-2 text-center">
+                                      <p className="text-xs font-semibold text-gray-700">You receive</p>
+                                      <p className="text-xs text-gray-600 mt-0.5">Your purchase price + your share of appreciation</p>
+                                    </div>
+                                    <div className="flex-1 bg-teal-50 rounded-lg p-2 text-center">
+                                      <p className="text-xs font-semibold text-gray-700">CLT receives</p>
+                                      <p className="text-xs text-gray-600 mt-0.5">Land + CLT's share of appreciation (kept affordable)</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="flex items-stretch gap-2">
+                                  <div className="flex-1 bg-white border-2 border-blue-300 rounded-xl p-3 text-center">
+                                    <div className="text-2xl mb-1">👤</div>
+                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">You</p>
+                                    <p className="text-xs text-gray-500 mt-1">Income-qualified buyer</p>
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center text-blue-400 text-lg px-1">→</div>
+                                  <div className="flex-1 bg-white border-2 border-teal-300 rounded-xl p-3 text-center">
+                                    <div className="text-2xl mb-1">🏠</div>
+                                    <p className="text-xs font-bold text-teal-700 uppercase tracking-wide">Affordable Home</p>
+                                    <p className="text-xs text-gray-500 mt-1">Priced below market rate</p>
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center text-blue-400 text-lg px-1">→</div>
+                                  <div className="flex-1 bg-white border-2 border-green-300 rounded-xl p-3 text-center">
+                                    <div className="text-2xl mb-1">📈</div>
+                                    <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Build Equity</p>
+                                    <p className="text-xs text-gray-500 mt-1">Own & grow wealth</p>
+                                  </div>
+                                </div>
+                                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
+                                  <p className="text-sm text-gray-700">Affordable homeownership programs make purchase prices possible for households earning <span className="font-semibold text-green-700">{housingProgram.incomeLimitText}</span></p>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
                     )
-                  })() : (
-                    <p className="text-gray-400 italic text-sm pl-1">No program selected</p>
-                  )}
+                  })() : null}
                 </div>
+                )}
 
               </CardContent>
             </Card>
           </div>
         )
+      } // end case 6
 
       default:
         return null
