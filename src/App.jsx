@@ -781,7 +781,7 @@ function App() {
             <Card className="border-2">
               <CardHeader>
                 <CardTitle className="text-base">Race &amp; Ethnicity</CardTitle>
-                <CardDescription>Census-style. Select all that apply. Some programs are designed for specific communities.</CardDescription>
+                <CardDescription>Select all that apply. Some programs are designed for specific communities.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
