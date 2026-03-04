@@ -668,7 +668,7 @@ function App() {
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <MapPin className="w-5 h-5 text-blue-600" />
                     </div>
-                    <CardTitle>Where Are You Hoping to Live?</CardTitle>
+                    <CardTitle className="text-base">Where Are You Hoping to Live?</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -685,7 +685,7 @@ function App() {
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <DollarSign className="w-5 h-5 text-green-600" />
                     </div>
-                    <CardTitle>Annual Income</CardTitle>
+                    <CardTitle className="text-base">Annual Income</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -702,7 +702,7 @@ function App() {
                     <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                       <CreditCard className="w-5 h-5 text-amber-600" />
                     </div>
-                    <CardTitle>Credit Score</CardTitle>
+                    <CardTitle className="text-base">Credit Score</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -721,7 +721,7 @@ function App() {
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-purple-600" />
                     </div>
-                    <CardTitle>Down Payment Saved</CardTitle>
+                    <CardTitle className="text-base">Down Payment Saved</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
