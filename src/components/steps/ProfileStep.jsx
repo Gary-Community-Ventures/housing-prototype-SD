@@ -70,7 +70,8 @@ export function ProfileStep({ formData, updateFormData, setStep, creditAssessmen
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="income">Annual Income</Label>
+              <Label htmlFor="income">What is your household's annual income?</Label>
+              <p className="text-sm text-gray-500 mt-1">This includes money from jobs, alimony, investments, or gifts. Income is the money earned or received before deducting taxes.</p>
               <div className="relative mt-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                 <Input

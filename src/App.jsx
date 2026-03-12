@@ -443,6 +443,37 @@ function CountyMultiSelect({ value, onChange }) {
   )
 }
 
+function FhaTooltip() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-4 h-4 rounded-full bg-green-200 text-green-700 text-xs font-bold flex items-center justify-center hover:bg-green-300 focus:outline-none"
+        aria-label="What is FHA?"
+      >
+        ?
+      </button>
+      {open && (
+        <div className="absolute z-50 bottom-6 left-1/2 -translate-x-1/2 w-64 bg-white border border-green-200 rounded-lg shadow-lg p-3 text-left">
+          <p className="text-xs font-bold text-gray-800 mb-1">What is FHA?</p>
+          <p className="text-xs text-gray-600">The <span className="font-semibold">Federal Housing Administration (FHA)</span> is a U.S. government agency that insures mortgage loans issued by approved lenders. FHA loans are popular with first-time homebuyers because they require a lower minimum down payment (3.5%) and accept lower credit scores than most conventional loans. Because the government backs the loan, lenders can offer more flexible terms — but borrowers pay a mortgage insurance premium (MIP) to offset that risk.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function App() {
   const [step, setStep] = useState(0)
   const [showSchedulePopup, setShowSchedulePopup] = useState(false)
@@ -672,6 +703,7 @@ function App() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <p className="text-sm text-gray-500 mb-3">Select all that apply.</p>
                   <CountyMultiSelect
                     value={formData.location}
                     onChange={(updated) => updateFormData({ location: updated })}
@@ -685,10 +717,11 @@ function App() {
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <DollarSign className="w-5 h-5 text-green-600" />
                     </div>
-                    <CardTitle className="text-base">Annual Income</CardTitle>
+                    <CardTitle className="text-base">What is your household's annual income?</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <p className="text-sm text-gray-500 mb-3">This includes money from jobs, alimony, investments, or gifts, before deducting taxes.</p>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                     <Input type="text" inputMode="numeric" placeholder="85,000" className="pl-7" value={formData.income ? parseInt(formData.income).toLocaleString('en-US') : ''} onChange={(e) => updateFormData({ income: parseFormattedNumber(e.target.value) })} />
@@ -702,7 +735,7 @@ function App() {
                     <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                       <CreditCard className="w-5 h-5 text-amber-600" />
                     </div>
-                    <CardTitle className="text-base">Credit Score</CardTitle>
+                    <CardTitle className="text-base">What is your credit score?</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -721,7 +754,7 @@ function App() {
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-purple-600" />
                     </div>
-                    <CardTitle className="text-base">Down Payment Saved</CardTitle>
+                    <CardTitle className="text-base">How much do you have saved for a down payment?</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -903,44 +936,69 @@ function App() {
                 <div className="flex items-center justify-center gap-4 mt-1">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-800">{formatCurrency(lowPrice)}</p>
-                    <p className="text-xs text-green-600 mt-0.5">{formatCurrency(calcMonthly(lowPrice))}/mo PITI</p>
                     <p className="text-xs text-green-500">conservative</p>
                   </div>
                   <div className="text-green-400 font-bold text-xl">→</div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-800">{formatCurrency(highPrice)}</p>
-                    <p className="text-xs text-green-600 mt-0.5">{formatCurrency(calcMonthly(highPrice))}/mo PITI</p>
-                    <p className="text-xs text-green-500">FHA maximum</p>
+                    <div className="flex items-center justify-center gap-1 mt-0.5">
+                      <p className="text-xs text-green-500">FHA maximum</p>
+                      <FhaTooltip />
+                    </div>
                   </div>
+                </div>
+                <p className="text-xs text-green-700 text-center mt-2">Your monthly mortgage payment, including the principal cost of the home, insurance, taxes, and interest, would be:</p>
+                <div className="flex items-center justify-center gap-4 mt-1">
+                  <p className="text-sm font-bold text-green-700">{formatCurrency(calcMonthly(lowPrice))}/mo</p>
+                  <div className="text-green-400 font-bold text-xl">→</div>
+                  <p className="text-sm font-bold text-green-700">{formatCurrency(calcMonthly(highPrice))}/mo</p>
                 </div>
               </CardContent>
             </Card>
 
             {/* Cash to close breakdown */}
-            <div className="grid md:grid-cols-3 gap-4">
-              <Card className="border-2 border-blue-200 bg-blue-50">
-                <CardContent className="pt-5 flex flex-col items-center text-center">
-                  <p className="text-sm text-blue-700 font-bold">Min. Down Payment</p>
-                  <p className="text-xs text-blue-500 mt-1 mb-2">3.5% of purchase price (FHA)</p>
-                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(minDown)}</p>
+            <div className="flex flex-wrap items-stretch justify-center gap-2">
+              <Card className="border-2 border-blue-200 bg-blue-50 flex-1 min-w-[140px]">
+                <CardContent className="pt-5 flex flex-col items-center text-center justify-between h-full">
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm text-blue-700 font-bold">Min. Down Payment</p>
+                    <p className="text-xs text-blue-500 mt-1 mb-2">3.5% of purchase price (FHA)</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-800 mt-auto">{formatCurrency(minDown)}</p>
                 </CardContent>
               </Card>
-              <Card className="border-2 border-orange-200 bg-orange-50">
-                <CardContent className="pt-5 flex flex-col items-center text-center">
-                  <p className="text-sm text-orange-700 font-bold">Est. Closing Costs</p>
-                  <p className="text-xs text-orange-500 mt-1 mb-2">~2.5% of purchase price</p>
-                  <p className="text-2xl font-bold text-orange-800">{formatCurrency(closingCosts)}</p>
+              <span className="text-2xl font-bold text-gray-400 flex items-center">+</span>
+              <Card className="border-2 border-blue-200 bg-blue-50 flex-1 min-w-[140px]">
+                <CardContent className="pt-5 flex flex-col items-center text-center justify-between h-full">
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm text-blue-700 font-bold">Est. Closing Costs</p>
+                    <p className="text-xs text-blue-500 mt-1 mb-2">~2.5% of purchase price</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-800 mt-auto">{formatCurrency(closingCosts)}</p>
                 </CardContent>
               </Card>
-              <Card className={`border-2 ${gap === 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                <CardContent className="pt-5 flex flex-col items-center text-center">
-                  <p className={`text-sm font-bold ${gap === 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {gap === 0 ? 'Savings Cover It ✓' : 'Gap to Close'}
-                  </p>
-                  <p className={`text-xs mt-1 mb-2 ${gap === 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {gap === 0 ? `You have ${formatCurrency(savings)} saved` : 'DPA programs can help cover this'}
-                  </p>
-                  <p className={`text-2xl font-bold ${gap === 0 ? 'text-green-800' : 'text-red-800'}`}>
+              <span className="text-2xl font-bold text-gray-400 flex items-center">−</span>
+              <Card className="border-2 border-orange-200 bg-orange-50 flex-1 min-w-[140px]">
+                <CardContent className="pt-5 flex flex-col items-center text-center justify-between h-full">
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm text-orange-700 font-bold">Amount You Have Saved</p>
+                    <p className="text-xs text-orange-500 mt-1 mb-2">From your profile</p>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-800 mt-auto">{formatCurrency(savings)}</p>
+                </CardContent>
+              </Card>
+              <span className="text-2xl font-bold text-gray-400 flex items-center">=</span>
+              <Card className={`border-2 flex-1 min-w-[140px] ${gap === 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <CardContent className="pt-5 flex flex-col items-center text-center justify-between h-full">
+                  <div className="flex flex-col items-center">
+                    <p className={`text-sm font-bold ${gap === 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {gap === 0 ? 'Savings Cover It ✓' : 'Gap to Close'}
+                    </p>
+                    <p className={`text-xs mt-1 mb-2 ${gap === 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {gap === 0 ? `You have ${formatCurrency(savings)} saved` : 'Down payment assistance programs can help cover this'}
+                    </p>
+                  </div>
+                  <p className={`text-2xl font-bold mt-auto ${gap === 0 ? 'text-green-800' : 'text-red-800'}`}>
                     {gap === 0 ? formatCurrency(0) : formatCurrency(gap)}
                   </p>
                 </CardContent>
@@ -951,13 +1009,13 @@ function App() {
             {eligiblePrograms.length > 0 && gap > 0 && (
               <Card className="border-2 border-purple-200 bg-purple-50">
                 <CardContent className="pt-5 flex flex-col items-center text-center">
-                  <p className="text-sm text-purple-700 font-bold">Maximum Down Payment Assistance Available</p>
+                  <p className="text-sm text-purple-700 font-bold">There are public assistance programs we can connect you to. The maximum amount of assistance available to you is:</p>
                   <p className="text-xs text-purple-500 mt-1 mb-2">
                     {adjustedGap === 0
-                      ? 'DPA programs can fully cover your gap'
-                      : `After DPA, remaining gap: ${formatCurrency(adjustedGap)}`}
+                      ? 'Down payment assistance programs can fully cover your gap'
+                      : `After down payment assistance, remaining gap: ${formatCurrency(adjustedGap)}`}
                   </p>
-                  <p className="text-2xl font-bold text-purple-800">{formatCurrency(maxDPA)}</p>
+                  <p className="text-2xl font-bold text-purple-800 mt-2">{formatCurrency(maxDPA)}</p>
                 </CardContent>
               </Card>
             )}
@@ -1371,7 +1429,7 @@ function App() {
               <h1 className="text-3xl font-bold text-gray-900">Prepare and Apply</h1>
             </div>
 
-            {/* Step 1: Homebuyer Education */}
+            {/* Step 1: Necessary Documents */}
             <Card className={`border-2 ${stepComplete[1] ? 'border-green-400 bg-green-50/40' : ''}`}>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1379,41 +1437,14 @@ function App() {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${stepComplete[1] ? 'bg-green-500' : 'bg-yellow-400'}`}>
                       {stepComplete[1] ? <CheckCircle2 className="w-5 h-5" /> : '1'}
                     </div>
-                    <CardTitle className={`text-lg ${stepComplete[1] ? 'text-green-700 line-through' : 'text-gray-900'}`}>Homebuyer Education Course</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Complete</span>
-                    <Checkbox checked={stepComplete[1]} onCheckedChange={() => toggleStepComplete(1)} />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 text-center">Complete an 8-hour HUD-approved course. Required for most Down Payment Assistance programs.</p>
-                <div className="flex justify-center mt-3">
-                  <Button variant="outline" size="sm" onClick={() => window.open('https://chaconline.org/home-buyer-education/', '_blank')}>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Find a Course
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Step 2: Necessary Documents */}
-            <Card className={`border-2 ${stepComplete[2] ? 'border-green-400 bg-green-50/40' : ''}`}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${stepComplete[2] ? 'bg-green-500' : 'bg-yellow-400'}`}>
-                      {stepComplete[2] ? <CheckCircle2 className="w-5 h-5" /> : '2'}
-                    </div>
                     <div>
-                      <CardTitle className={`text-lg ${stepComplete[2] ? 'text-green-700 line-through' : 'text-gray-900'}`}>Gather Necessary Documents</CardTitle>
+                      <CardTitle className={`text-lg ${stepComplete[1] ? 'text-green-700 line-through' : 'text-gray-900'}`}>Gather Necessary Documents</CardTitle>
                       <CardDescription className="pt-1">Gather these documents before meeting with your lender.</CardDescription>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">Complete</span>
-                    <Checkbox checked={stepComplete[2]} onCheckedChange={() => toggleStepComplete(2)} />
+                    <Checkbox checked={stepComplete[1]} onCheckedChange={() => toggleStepComplete(1)} />
                   </div>
                 </div>
               </CardHeader>
@@ -1430,6 +1461,33 @@ function App() {
                     </li>
                   ))}
                 </ul>
+              </CardContent>
+            </Card>
+
+            {/* Step 2: Homebuyer Education */}
+            <Card className={`border-2 ${stepComplete[2] ? 'border-green-400 bg-green-50/40' : ''}`}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${stepComplete[2] ? 'bg-green-500' : 'bg-yellow-400'}`}>
+                      {stepComplete[2] ? <CheckCircle2 className="w-5 h-5" /> : '2'}
+                    </div>
+                    <CardTitle className={`text-lg ${stepComplete[2] ? 'text-green-700 line-through' : 'text-gray-900'}`}>Homebuyer Education Course</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Complete</span>
+                    <Checkbox checked={stepComplete[2]} onCheckedChange={() => toggleStepComplete(2)} />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 text-center">Complete an 8-hour HUD-approved course. Required for most Down Payment Assistance programs.</p>
+                <div className="flex justify-center mt-3">
+                  <Button variant="outline" size="sm" onClick={() => window.open('https://chaconline.org/home-buyer-education/', '_blank')}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Find a Course
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
